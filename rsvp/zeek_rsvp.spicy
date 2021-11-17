@@ -1,0 +1,12 @@
+module Zeek_RSVP;
+
+import zeek;
+import RSVP;
+
+on RSVP::PathMsg::%done {
+	zeek::confirm_protocol();
+}
+
+on RSVP::PathMsg::%error {
+	zeek::reject_protocol("error while parsing RSVP packet");
+}

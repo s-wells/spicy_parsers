@@ -1,0 +1,94 @@
+#     
+#	
+#	  0             1              2             3
+#        +-------------+-------------+-------------+-------------+
+#        | Vers | Flags|  Msg Type   |       RSVP Checksum       |
+#        +-------------+-------------+-------------+-------------+
+#        |  Send_TTL   | (Reserved)  |        RSVP Length        |
+#        +-------------+-------------+-------------+-------------+
+
+module RSVP;
+#import zeek;
+import spicy;
+
+public type RSVPHeader = unit {
+	#extra: bytes &size=38;
+	ethernetbytes: bytes &size=14;
+	ipbytesone: bytes &size=9;
+	protocol: uint8;
+	ipbytes2: bytes &size=14;
+	data: bytes &eod;
+
+	#header: bitfield(8) {
+	#	version: 0..3;
+	#	flags: 4..7;
+	#};  
+	header: bytes &size=1;
+
+	messagetype: int8;
+	checksum: bytes &size=2;
+	sendttl: int8;
+	reserved: bytes &size=1;
+	length: int16;
+	#testing: bytes &eod;
+
+	switch ( self.messagetype ) {
+		1 -> path:	PathMsg;
+		2 -> resv:	ResvMsg;
+#		3 -> patherr:	PathErrMsg;
+#		4 -> resverr:	ResvErrMsg;
+#		5 -> pathtear:	PathTearMsg;
+#		6 -> resvtear:	ResvTearMsg;
+#		7 -> resvconf:	ResvConfMsg;
+	};
+
+
+	on %done {print self;}
+	
+};
+
+type PathMsg = unit {
+	sessionlen: int16;
+	sessionclass: int8;
+	sessionctype: int8;
+	destaddr: addr &ipv4;
+	protocol: int8;
+	flag: int8;
+	portnum: int16;
+	hoplen: int16;
+	hopclass: int8;
+	ctype: int8;
+	neighbor: addr &ipv4;
+	logical: bytes &size=4;
+	timevalue: bytes &size=8;
+	sendertemp: bytes &size=12;
+	tspec: bytes &size=36;
+	adspec: bytes &size=48;
+
+	on %done { print "We got a PATH message."; }
+};
+
+type ResvMsg = unit {
+	sessionlen: int16;
+	sessionclass: int8;
+	sessionctype: int8;
+	destaddr: addr &ipv4;
+	protocol: int8;
+	flag: int8;
+	portnum: int16;
+	hoplen: int16;
+	hopclass: int8;
+	ctype: int8;
+	neighbor: addr &ipv4;
+	logical: bytes &size=4;
+	timevalue: bytes &size=8;
+	confirm: bytes &size=8;
+	style: bytes &size=8;
+	flowspec: bytes &size=36;
+	filterspec: bytes &size=12;
+
+	on %done { print "We got a RESV message."; }
+};
+
+
+	

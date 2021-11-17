@@ -1,0 +1,7 @@
+packet analyzer spicy::RSVP:
+	parse with RSVP::RSVPHeader;
+
+
+on RSVP::PathMsg -> event rsvp::pathmsg($conn);
+on RSVP::ResvMsg -> event rsvp::resvmsg($conn);
+
