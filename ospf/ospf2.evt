@@ -1,0 +1,10 @@
+packet analyzer spicy::OSPF:
+    parse with OSPF::OSPFPacket;
+
+import OSPF;
+
+on OSPF::HelloPacket -> event ospf::hello_packet($conn, self.netmask, self.desig_router);
+on OSPF::Database -> event OSPF::database($conn);
+on OSPF::LinkRequest -> event OSPF::link_request($conn);
+on OSPF::LinkUpdate -> event OSPF::link_update($conn);
+on OSPF::LinkAck -> event OSPF::link_ack($conn);

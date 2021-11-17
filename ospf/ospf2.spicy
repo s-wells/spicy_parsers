@@ -1,0 +1,97 @@
+#
+# OSPF
+#
+# Specs from https://tools.ietf.org/html/rfc2328
+#
+#                                 OSPF Header
+#
+#        0                   1                   2                   3
+#        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#       |   Version #   |     Type      |         Packet length         |
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#       |                          Router ID                            |
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#       |                           Area ID                             |
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#       |           Checksum            |             AuType            |
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#       |                       Authentication                          |
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+#       |                       Authentication                          |
+#       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+module OSPF;
+
+#import zeek;
+
+public type OSPFPacket = unit {
+
+    data: bytes &size=41;
+    ethernet: bytes &size=14;
+    ipheader: bytes &size=19;
+    version: uint8;
+    ospf_type: uint8;
+    packet_length: uint16;
+    router_id: addr &ipv4;
+    area_id: uint32;
+    checksum: uint16;
+    autype: uint16;
+    auth: uint64;
+	
+	switch ( self.ospf_type ) {
+		1 -> hp: HelloPacket;
+		2 -> dd: Database(self.packet_length);
+		3 -> lr: LinkRequest(self.packet_length);
+		4 -> lu: LinkUpdate(self.packet_length);
+		5 -> la: LinkAck(self.packet_length);
+	};
+
+    on %done { print self; }
+
+	
+};
+
+type HelloPacket = unit { 
+	netmask: addr &ipv4;
+	hello_int: uint16;
+	options: uint8;
+	router_priority: uint8;
+	dead_int: uint32;
+	desig_router: addr &ipv4;
+	backup_router: addr &ipv4;
+	
+	on %done { print "hello packet"; }
+
+	
+};
+
+type Database = unit (length: uint16) { 
+	data: bytes &size=8;
+	lsa: bytes &size=length-24;
+	on %done { print "database description"; }
+};
+type LinkRequest = unit (length: uint16) { 
+	request: bytes &size=length-24;
+	on %done { print "link state request"; } 
+};
+type LinkUpdate = unit (length: uint16) { 
+	update: bytes &size=length-24;
+	on %done { print "link state update"; }
+};
+type LinkAck = unit (length: uint16) { 
+	ack: bytes &size=length-24;
+	on %done { print "link state ack"; }
+};
+
+# Type 1 = Hello 
+# Type 2 = Database Description
+# Type 3 = Link State Request
+# Type 4 = Link State Update
+# Type 5 = Link State Ack
+# type HelloPacket = unit { print "hello packet"; };
+# type Database = unit { print "database description"; };
+# type LinkRequest = unit { print "link state request"; };
+# type LinkUpdate = unit { print "link state update"; };
+# type LinkAck = unit { print "link state ack"; };
