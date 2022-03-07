@@ -1,0 +1,16 @@
+packet analyzer spicy::RSVP:
+	parse with zeek_spicy_rsvp::RSVPPacket;
+
+import zeek_spicy_rsvp;
+import Zeek_zeek_spicy_rsvp;
+
+on zeek_spicy_rsvp::RSVPPacket -> event RSVP::message($packet, self.flags.version, self.rsvp_type);
+
+on zeek_spicy_rsvp::SessionObj -> event RSVP::sessionobj($packet);
+on zeek_spicy_rsvp::RsvpHop -> event RSVP::resvhop($packet, parent.flags.version, parent.rsvp_type, self.neighaddr);
+on zeek_spicy_rsvp::ExplicitRt -> event RSVP::explicitrt($packet, parent.flags.version, parent.rsvp_type, self.rt_addr);
+on zeek_spicy_rsvp::SessAttr -> event RSVP::sessattr($packet, parent.flags.version, parent.rsvp_type, self.attr_name);
+on zeek_spicy_rsvp::SenderTemp -> event RSVP::sendertemp($packet, parent.flags.version, parent.rsvp_type, self.sender_addr);
+on zeek_spicy_rsvp::ResvConf -> event RSVP::resvconf($packet, parent.flags.version, parent.rsvp_type, self.rec_addr);
+on zeek_spicy_rsvp::FilterSpec -> event RSVP::filterspec($packet, parent.flags.version, parent.rsvp_type, self.sender_addr);
+

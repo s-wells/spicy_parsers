@@ -1,0 +1,306 @@
+#     
+#	
+#	  0             1              2             3
+#        +-------------+-------------+-------------+-------------+
+#        | Vers | Flags|  Msg Type   |       RSVP Checksum       |
+#        +-------------+-------------+-------------+-------------+
+#        |  Send_TTL   | (Reserved)  |        RSVP Length        |
+#        +-------------+-------------+-------------+-------------+
+
+module zeek_spicy_rsvp;
+
+public type RSVPPacket = unit {
+	flags: bitfield(8) {
+		version: 4;
+	};
+	rsvp_type: uint8 &convert=MsgType($$);
+	checksum: bytes &size=2;
+	sendttl: uint8;
+	reserved: bytes &size=1;
+	length: uint16;
+	objtypes: Object_Types(self);
+	on %done { print self; }
+};
+
+public type MsgType = enum {
+	Path 			= 1,
+	Resv 			= 2,
+	PathErr			= 3,
+	ResvErr			= 4,
+	PathTear		= 5,
+	ResvTear		= 6,
+	ResvConf		= 7,
+	Dreq			= 8,
+	Drep			= 9,
+	ResvTearCon		= 10,
+	Bundle			= 12,
+	Ack 			= 13,
+	Srefresh		= 15,
+	Hello			= 20,
+	Notify			= 21,
+	IntgChal		= 25,
+	IntgResp		= 26,
+	RecPath			= 30,
+};
+
+public type ObjClass = enum {
+	Session 			= 1,
+	Rsvp_Hop			= 3,
+	Integrity			= 4,
+	Time_Values			= 5, 
+	Error_Spec			= 6,
+	Scope				= 7,
+	Style				= 8,
+	Flowspec			= 9,
+	Filter_Spec			= 10,
+	Sender_Temp			= 11,
+	Sender_Tspec		= 12,
+	Adspec				= 13,
+	Policy_Data			= 14,
+	Resv_Conf			= 15, 
+	Rsvp_Label			= 16,
+	Hop_Count			= 17,
+	Strict_Source		= 18,
+	Label_Req			= 19,
+	Explicit_Rt			= 20,
+	Route_Rec			= 21,
+	Hello				= 22,
+	Message_Id			= 23,
+	Mess_Id_Ack			= 24,
+	Mess_Id_List		= 25,
+	Diagnostic			= 30,
+	Route_class			= 31,
+	Diag_Resp			= 32,
+	Diag_Slct			= 33,
+	Rec_Label			= 34, 
+	Up_Label			= 35,
+	Label_Set			= 36,
+	Protection			= 37,
+	Prim_Path			= 38,
+	DSBM_IP				= 42,
+	SMB_Priority		= 43,
+	DSMB_Timer			= 44, 
+	SMB_Info			= 45, 
+	S2L_Sub				= 50,
+	Detour				= 63,
+	Challenge			= 64,
+	Diff_Serv			= 65,
+	Class_Type			= 66,
+	LSP_Req				= 67,
+	Up_Flowspec			= 120,
+	Up_Tspec			= 121,
+	Up_Adspec			= 122,
+	Node_Char			= 128,
+	Sugg_Label 			= 129,
+	Accept_Label		= 130,
+	Restart_Cap			= 131,
+	Sess_Interest		= 132, 
+	Link_Cap			= 133,
+	Cap_Obj				= 134,
+	Rsvp_Hop_L2			= 161,
+	LAN_NHOP_L2			= 162,
+	LAN_NHOP_L3			= 163,
+	LAN_Loopback		= 164,
+	Tclass				= 165,
+	Session_Assoc		= 192,
+	LSP_Tunnel_ID		= 193,
+	User_Error_Spec		= 194,
+	Notify_Req			= 195,
+	Admin_Status		= 196,
+	LSP_Attr			= 197,
+	Alarm_Spec			= 198,
+	Assoc 				= 199,
+	Sec_Expl_Rte		= 200,
+	Sec_Rec_Rte			= 201,
+	Call_Attributes		= 202,
+	Reverse_LSP			= 203,
+	S2L_Sub_LSP			= 204,
+	Fast_ReRte			= 205,
+	Sess_Attr			= 207,
+	DClass				= 225,
+	PktCable_Ext		= 226,
+	ATM_Serv_Class		= 227,
+	Call_Ops			= 228,
+	Gen_Uni				= 229,
+	Call_ID				= 230,
+	GPP2_Obj			= 231,
+	PCN 				= 248,
+};
+
+public type Object_Types = unit (parent: RSVPPacket) {
+	obj_len: uint16;
+	obj_type: uint8 &convert=ObjClass($$);
+	switch (self.obj_type) {
+		ObjClass::Session -> session: SessionObj(parent, self.obj_len);
+		ObjClass::Rsvp_Hop -> rsvphop: RsvpHop(parent);
+		ObjClass::Time_Values -> timevalues: TimeValues(parent);
+		ObjClass::Explicit_Rt -> explicitrt: ExplicitRt(parent, self.obj_len);
+		ObjClass::Style -> style: Style(parent);
+		ObjClass::Flowspec -> flowspec: FlowSpec(parent, self.obj_len);
+		ObjClass::Label_Req -> labelreq: LabelReq(parent);
+		ObjClass::Sess_Attr -> sessattr: SessAttr(parent);
+		ObjClass::Sender_Temp -> sendertemp: SenderTemp(parent);
+		ObjClass::Sender_Tspec -> sendertspec: SenderTspec(parent, self.obj_len);
+		ObjClass::Adspec -> adspec: AdSpec(parent, self.obj_len);
+		ObjClass::Error_Spec -> errorspec: ErrorSpec(parent);
+		ObjClass::Resv_Conf -> resvconf: ResvConf(parent);
+		ObjClass::Filter_Spec -> filterspec: FilterSpec(parent);
+		ObjClass::Rsvp_Label -> rsvplabel: RsvpLabel(parent, self.obj_len);
+		*-> payload: bytes &eod;
+	};
+};
+
+type SessionObj = unit(parent: RSVPPacket, objlen: uint16) {
+	sessionbytes: bytes &size=objlen-3;
+	nextobj: Object_Types(parent);
+};
+
+type RsvpHop = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	neighaddr: addr &ipv4;
+	hopbytes: bytes &size=4;
+	nextobj: Object_Types(parent);
+};
+
+type TimeValues = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	refreshint: int32;
+	nextobj: Object_Types(parent);
+};
+
+type ExplicitRt = unit(parent: RSVPPacket, objlen: uint16) {
+	ctype: uint8;
+	var subobject_len: uint16 = objlen - 4;
+	hop_type: uint8;
+	route_len: uint8;
+	rt_addr: addr &ipv4;
+	route_prefix: uint8;
+	routebytes: bytes &size=self.subobject_len - 11;
+	nextobj: Object_Types(parent);
+};
+
+type SubObject = unit(parent: RSVPPacket) {
+	: uint8;
+	: uint8;
+	ip_addr: addr &ipv4;
+	: uint8;
+};
+
+type Style = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	flags: uint8;
+	style: bytes &size=3;
+	#nobj: Object_Types();
+	nextobj: Object_Types(parent);
+};
+
+type FlowSpec = unit (parent: RSVPPacket, objlen: uint16) {
+	ctype: uint8;
+	messformat: uint8;
+	: bytes &size=1;
+	numwords: uint16;
+	datalen: uint16;
+	param: bytes &size=objlen-6;
+	nextobj: Object_Types(parent);
+};
+
+type LabelReq = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	: bytes &size=2;
+	l3pid: bytes &size=2;
+	nextObj: Object_Types(parent);
+};
+
+type SessAttr = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	setup_pri: uint8;
+	hold_pri: uint8;
+	flags: uint8;
+	name_len: uint8;
+	attr_name: bytes &size=self.name_len &convert=$$.decode();
+	: bytes &size=2;
+	nextObj: Object_Types(parent);
+};
+
+type SenderTemp = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	sender_addr: addr &ipv4;
+	call_id: uint16;
+	lsp_id: int16;
+	nextObj: Object_Types(parent);
+};
+
+type SenderTspec = unit (parent: RSVPPacket, objlen: uint16) {
+	ctype: uint8;
+	mess_fmt: bytes &size=1;
+	: bytes &size=1;
+	datalen: uint16;
+	serv_head: uint8;
+	: bytes &size=1;
+	datalen2: uint16;
+	parameter: bytes &size=objlen-12;
+	nextObj: Object_Types(parent);
+};
+
+type AdSpec = unit (parent: RSVPPacket, objlen: uint16) {
+	ctype: uint8;
+	mess_fmt: bytes &size=1;
+	: bytes &size=1;
+	datalen: uint16;
+	parameters: bytes &size=objlen-8;
+	nextObj: Object_Types(parent);
+};
+
+type ErrorSpec = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	errornode: addr &ipv4;
+	flags: bytes &size=1;
+	ecode: uint8;
+	evalue: uint16;
+	nextObj: Object_Types(parent);
+};
+
+type ResvConf = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	rec_addr: addr &ipv4;
+	nextObj: Object_Types(parent);
+};
+
+type FilterSpec = unit(parent: RSVPPacket) {
+	ctype: uint8;
+	sender_addr: addr &ipv4;
+	: bytes &size=2;
+	lspid: uint16;
+	nextObj: Object_Types(parent);
+};
+
+type RsvpLabel = unit (parent: RSVPPacket, objlen: uint16) {
+	ctype: uint8;
+	labelnum: bytes &size=objlen-4;
+	nextObj: Object_Types(parent);
+};
+
+type fixRSVP_Hop = unit(parent: RSVPPacket) {
+	: bytes &size=1;
+	objlen: uint16;
+	obj_type: uint8 &convert=ObjClass($$);
+	switch (self.obj_type) {
+		ObjClass::Session -> session: SessionObj(parent, self.objlen);
+		ObjClass::Rsvp_Hop -> rsvphop: RsvpHop(parent);
+		ObjClass::Time_Values -> timevalues: TimeValues(parent);
+		ObjClass::Explicit_Rt -> explicitrt: ExplicitRt(parent, self.objlen);
+		ObjClass::Style -> style: Style(parent);
+		ObjClass::Flowspec -> flowspec: FlowSpec(parent, self.objlen);
+		ObjClass::Label_Req -> labelreq: LabelReq(parent);
+		ObjClass::Sess_Attr -> sessattr: SessAttr(parent);
+		ObjClass::Sender_Temp -> sendertemp: SenderTemp(parent);
+		ObjClass::Sender_Tspec -> sendertspec: SenderTspec(parent, self.objlen);
+		ObjClass::Adspec -> adspec: AdSpec(parent, self.objlen);
+		ObjClass::Error_Spec -> errorspec: ErrorSpec(parent);
+		ObjClass::Resv_Conf -> resvconf: ResvConf(parent);
+		ObjClass::Filter_Spec -> filterspec: FilterSpec(parent);
+		ObjClass::Rsvp_Label -> rsvplabel: RsvpLabel(parent, self.objlen);
+		*-> payload: bytes &eod;
+	};
+	#nextObj: Object_Types();
+};

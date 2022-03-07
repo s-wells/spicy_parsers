@@ -1,0 +1,13 @@
+module Zeek_zeek_spicy_rsvp;
+
+import zeek_spicy_rsvp;
+import zeek;
+
+
+#on zeek_spicy_rsvp::RSVPPacket::%done {
+#    zeek::confirm_protocol();
+#}
+
+#on zeek_spicy_rsvp::RSVP::%error {
+#    zeek::reject_protocol("error while parsing OSPF record");
+#}
